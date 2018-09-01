@@ -36,13 +36,15 @@ def parse_entry(entry):
      return (form, company, cik, date, filename)
 
 
-def read_form_index(filename):
+def read_form_index_entries(filename):
+     """
+     Read form index from file and return 4/A form entries iteratively.
+     """
      with open(filename, 'r') as f:
           for line in f:
                if line.startswith('4/A'):
-                    # print(line.strip())
-                    l = line.strip().split(' ')
-                    print(parse_entry(line))
+                    entry = parse_entry(line)
+                    yield entry
 
 
 
@@ -50,4 +52,5 @@ if __name__ == "__main__":
      # url = DAILY_INDEX_ENDPOINT + '2018/QTR3/sitemap.20180824.xml'
      form = Path('./data') / 'form.20180824.idx'
 
-     read_form_index(form)
+     for entry in read_form_index_entries(form):
+          print(entry)
