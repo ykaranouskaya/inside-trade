@@ -2,6 +2,7 @@
 
 import datetime
 import re
+import csv
 import xml.etree.cElementTree as cElementTree
 import urllib.request as request
 from pathlib import Path
@@ -63,6 +64,8 @@ def _extract_owner_info(soup):
      ownership_relation = []
      for child in relation.stripped_strings:
           ownership_relation.append(child)
+     if len(ownership_relation) == 4:
+          ownership_relation.append('')
 
      return (cik, name, ownership_relation)
 
@@ -125,20 +128,38 @@ def parse_form(txturl, from_file=False):
                soup = BeautifulSoup(f, 'html.parser')
           # print(soup.prettify())
           # print(soup.reportingowner.reportingownerrelationship.string)
-          print(_extract_owner_info(soup))
-          print(_extract_transaction_info(soup))
-          print(_extract_issuer_info(soup))
-          print(_extract_holding_info(soup))
+          # print(_extract_owner_info(soup))
+          # print(_extract_transaction_info(soup))
+          # print(_extract_issuer_info(soup))
+          # print(_extract_holding_info(soup))
      else:
           with request.urlopen(txturl) as url:
                url_data = url.read()
           soup = BeautifulSoup(url_data, 'html.parser')
-          owner_info = _extract_holding_info(soup)
-          transactions = _extract_transaction_info(soup)
-          issuer_info = _extract_issuer_info(soup)
-          holdings_info = _extract_holding_info(soup)
+     owner_info = _extract_owner_info(soup)
+     transactions = _extract_transaction_info(soup)
+     issuer_info = _extract_issuer_info(soup)
+     holdings_info = _extract_holding_info(soup)
 
-          return (owner_info, issuer_info, transactions, holdings_info)
+     return (owner_info, issuer_info, transactions, holdings_info)
+
+
+def generate_csv_entry(info):
+     """
+     Generate entry as a table: (OWNER_CIK, OWNER_NAME, IS_DIRECTOR, IS_OFFICER, IS_10%_OWNER, OTHER, COMMENTS,
+                              ISSUER_CIK, ISSUER_COMPANY, TICKER,
+                              EQUITY, TRANSACTION_DATE, AQUIRED/DISPOSED, AMOUNT, PRICE_PER_UNIT,
+                              HOLDING_BEFORE, HOLDING_AFTER, OWNERSHIP_STATUS(DIRECT/INDIRECT), OWNERSHIP_NATURE)
+     :param info: tuple
+     :return:
+     """
+     owner = info[0]
+     issuer = info[1]
+     holding = info[3]
+     for transaction in info[2]:
+          entry = [owner[0], owner[1], *owner[2], *issuer, *transaction[:-1], holding[0],
+                   transaction[-1], *holding[1:]]
+          yield (','.join(entry))
 
 
 if __name__ == "__main__":
@@ -149,8 +170,14 @@ if __name__ == "__main__":
           print(entry)
 
      test_form_url = BASE_ENDPOINT + entry[-1]
-     info = parse_form(test_form_url)
+     info = parse_form(test_form_url, from_file=True)
      print(f"OWNER: {info[0]}")
      print(f"ISSUER: {info[1]}")
      print(f"TRANSACTIONS: {info[2]}")
      print(f"HOLDINGS: {info[3]}")
+     print(','.join(['OWNER_CIK', 'OWNER_NAME', 'IS_DIRECTOR', 'IS_OFFICER', 'IS_10%_OWNER', 'OTHER', 'COMMENTS',
+                              'ISSUER_CIK', 'ISSUER_COMPANY, TICKER',
+                              'EQUITY', 'TRANSACTION_DATE', 'AQUIRED/DISPOSED', 'AMOUNT', 'PRICE_PER_UNIT',
+                              'HOLDING_BEFORE', 'HOLDING_AFTER', 'OWNERSHIP_STATUS(DIRECT/INDIRECT)', 'OWNERSHIP_NATURE']))
+     for entry in generate_csv_entry(info):
+          print(entry)
