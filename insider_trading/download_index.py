@@ -7,18 +7,10 @@ import urllib.request as request
 import urllib.parse
 from pathlib import Path
 
+from insider_trading import utils
+
 
 DAILY_INDEX_ENDPOINT = 'https://www.sec.gov/Archives/edgar/daily-index/'
-
-
-def get_quarter(date):
-    """Compute quarter from the date"""
-    quarter = {0: 'QTR4',
-               1: 'QTR1',
-               2: 'QTR2',
-               3: 'QTR3'}
-    quarter_ind = date.month // 4 + 1
-    return quarter[quarter_ind]
 
 
 def find_weekdays(start_date, end_date):
@@ -43,11 +35,8 @@ def download_day_form_index(date, output_folder):
     :param date: datetime.date instance
     """
     year = date.strftime('%Y')
-    month = date.strftime('%m')
-    day = date.strftime('%d')
-    quarter = get_quarter(date)
-    stamp = ''.join([year, month, day])
-    filename = f'form.{stamp}.idx'
+    quarter = utils.get_quarter(date)
+    filename = utils.create_index_filename(date)
     url_stem = '/'.join([year, quarter, filename])
     url_address = urllib.parse.urljoin(DAILY_INDEX_ENDPOINT, url_stem)
     print(url_address)
@@ -81,15 +70,6 @@ def download_span_indices(date_span, output_folder):
         download_day_form_index(day, output_folder)
 
 
-def parse_date(filename):
-    """
-    Find date from the string `filename`.
-    """
-    match = re.search(r'form.(\d+).idx', filename)
-    if match:
-        return match.group(1)
-
-
 def find_latest_downloaded_index(data_folder):
     """
     Find latest downloaded index in `data_folder`
@@ -99,15 +79,15 @@ def find_latest_downloaded_index(data_folder):
     p = Path(data_folder)
     latest = None
     for index in p.glob('./*.idx'):
-        date_str = parse_date(index.name)
-        date = datetime.strptime(date_str, '%Y%m%d')
-        print(f"DATE: {date}")
+        date_str = utils.parse_date(index.name)
+        cur_date = datetime.strptime(date_str, '%Y%m%d')
+        print(f"DATE: {cur_date}")
         if latest:
-            if (date - latest).days > 0:
-                latest = date
-                print(f"DELTA: {(date - latest).days}")
+            if (cur_date - latest).days > 0:
+                latest = cur_date
+                print(f"DELTA: {(cur_date - latest).days}")
         else:
-            latest = date
+            latest = cur_date
     return latest
 
 
