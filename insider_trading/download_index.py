@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 import time
+import re
 import urllib.request as request
 import urllib.parse
 from pathlib import Path
@@ -80,9 +81,41 @@ def download_span_indices(date_span, output_folder):
         download_day_form_index(day, output_folder)
 
 
+def parse_date(filename):
+    """
+    Find date from the string `filename`.
+    """
+    match = re.search(r'form.(\d+).idx', filename)
+    if match:
+        return match.group(1)
+
+
+def find_latest_downloaded_index(data_folder):
+    """
+    Find latest downloaded index in `data_folder`
+    :param data_folder:
+    :return: datetime date
+    """
+    p = Path(data_folder)
+    latest = None
+    for index in p.glob('./*.idx'):
+        date_str = parse_date(index.name)
+        date = datetime.strptime(date_str, '%Y%m%d')
+        print(f"DATE: {date}")
+        if latest:
+            if (date - latest).days > 0:
+                latest = date
+                print(f"DELTA: {(date - latest).days}")
+        else:
+            latest = date
+    return latest
+
+
 if __name__ == "__main__":
     date = datetime.now()
     print(f"DATE: {date - timedelta(1)}")
+    latest = find_latest_downloaded_index('data')
+    print(f"LAST DATE: {latest}")
     # url = download_day_form_index(date - timedelta(1), 'data')
     # print(f"URL: {url}")
     # download_span_indices((date - timedelta(10), date), 'data')
