@@ -16,12 +16,11 @@ def find_weekdays(start_date, end_date):
     """Find weekdays from the span (start_date, end_date) `start_date` exclusive."""
     # start_date = start_date.date()
     # end_date = start_date.date()
-
     date = start_date
     weekdays = []
-    while date != end_date:
-        date += timedelta(1)
-        # print(f"New date: {date.weekday()}")
+    while not utils.check_same_date(date, end_date):
+        date += timedelta(days=1)
+        print(f"New date: {date.weekday()}")
         if date.isoweekday() in range(1, 6):
             weekdays.append(date)
 

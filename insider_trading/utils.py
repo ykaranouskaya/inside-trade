@@ -21,6 +21,14 @@ def get_quarter(date):
     return quarter[quarter_ind]
 
 
+def check_same_date(date1, date2):
+    """Check if two datetime dates are the same days"""
+    if date1.year == date2.year and date1.month == date2.month and date1.day == date2.day:
+        return True
+    else:
+        return False
+
+
 def create_index_filename(date):
     """
     Compose forms index filename from the date
