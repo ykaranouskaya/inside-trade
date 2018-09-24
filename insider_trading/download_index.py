@@ -2,7 +2,6 @@
 
 from datetime import datetime, timedelta
 import time
-import re
 import urllib.request as request
 import urllib.parse
 from pathlib import Path
@@ -46,7 +45,9 @@ def download_day_form_index(date, output_folder):
         with request.urlopen(req) as url_in:
             data = url_in.read()
     except urllib.error.HTTPError as e:
-        raise e
+        print('Error while downloading index')
+        print(e)
+        return None
 
     try:
         output = Path(output_folder)
@@ -55,19 +56,26 @@ def download_day_form_index(date, output_folder):
     except FileNotFoundError:
         print("No such output folder!")
 
-    return url_address
+    return filename
 
 
 def download_span_indices(date_span, output_folder):
     """
     Donwload indicies for a time span (start_date, end_date] inclusive to `output_folder`.
     :param date_span: tuple of datetime.dates (start_date, end_date)
-    :param output_folder:
+    :param output_folder: where to write indicies
+    :return: list of indices filenames
     """
     # Find valid weekdays (omit weekends)
     days = find_weekdays(date_span[0], date_span[1])
+    inds = []
     for day in days:
-        download_day_form_index(day, output_folder)
+        index = download_day_form_index(day, output_folder)
+        if index:
+            inds.append(index)
+        time.sleep(1)
+
+    return inds
 
 
 def find_latest_downloaded_index(data_folder):
@@ -81,11 +89,11 @@ def find_latest_downloaded_index(data_folder):
     for index in p.glob('./*.idx'):
         date_str = utils.parse_date(index.name)
         cur_date = datetime.strptime(date_str, '%Y%m%d')
-        print(f"DATE: {cur_date}")
+        # print(f"DATE: {cur_date}")
         if latest:
             if (cur_date - latest).days > 0:
                 latest = cur_date
-                print(f"DELTA: {(cur_date - latest).days}")
+                # print(f"DELTA: {(cur_date - latest).days}")
         else:
             latest = cur_date
     return latest
@@ -96,6 +104,7 @@ if __name__ == "__main__":
     print(f"DATE: {date - timedelta(1)}")
     latest = find_latest_downloaded_index('data')
     print(f"LAST DATE: {latest}")
+
     # url = download_day_form_index(date - timedelta(1), 'data')
     # print(f"URL: {url}")
     # download_span_indices((date - timedelta(10), date), 'data')
