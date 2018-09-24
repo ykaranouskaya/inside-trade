@@ -46,7 +46,7 @@ def read_form_index_entries(filename):
      """
     with open(filename, 'r') as f:
         for line in f:
-            if line.startswith('4/A'):
+            if line.startswith('4 ') or line.startswith('4/A'):
                 entry = parse_entry(line)
                 yield entry
 
