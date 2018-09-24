@@ -37,7 +37,7 @@ def parse_entry(entry):
     date = entry_list[-2]
     filename = entry_list[-1]
 
-    return (form, company, cik, date, filename)
+    return form, company, cik, date, filename
 
 
 def read_form_index_entries(filename):
@@ -93,9 +93,12 @@ def _extract_transaction_info(soup):
      :param soup: bs4 soup object
      :return: tuple (security, date, code(A/D), amount, price, holding_after)
      """
-    transactions = soup.nonderivativetable.find_all('nonderivativetransaction')
-    # print(f"Transactions: {transactions}")
     trans_tuple = []
+    try:
+        transactions = soup.nonderivativetable.find_all('nonderivativetransaction')
+    except AttributeError:
+        return trans_tuple
+    # print(f"Transactions: {transactions}")
     for transaction in transactions:
         security = transaction.securitytitle.text.strip()
         date = transaction.transactiondate.text.strip()
@@ -131,6 +134,8 @@ def _extract_holding_info(soup):
      :return: tuple (hoding_before, ownership_status(Direct/Indirect), ownership_nature)
      """
     holding = soup.nonderivativetable
+    if holding is None:
+        return ('', '', '')
 
     try:
         holding_before = holding.posttransactionamounts.sharesownedfollowingtransaction.text.strip()
@@ -192,7 +197,7 @@ def generate_csv_entry(info):
 
 if __name__ == "__main__":
     # url = DAILY_INDEX_ENDPOINT + '2018/QTR3/sitemap.20180824.xml'
-    form = Path('./data') / 'form.20180914.idx'
+    form = Path('./data') / 'form.20180918.idx'
     data_csv = Path('./data') / 'data.csv'
     heading = (['OWNER_CIK', 'OWNER_NAME', 'IS_DIRECTOR', 'IS_OFFICER', 'IS_10%_OWNER', 'OTHER', 'COMMENTS',
                 'ISSUER_CIK', 'ISSUER_COMPANY', 'TICKER',
