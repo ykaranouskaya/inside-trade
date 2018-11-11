@@ -9,7 +9,7 @@ from pytz import timezone
 from pathlib import Path
 import logging
 
-from insider_trading import download_index, parse_index, store
+from insider_trading import download_index, parse_index, store, utils
 from insider_trading.utils import check_same_date
 
 
@@ -24,9 +24,12 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument('output_database', help='Data file to save parsed info')
-    parser.add_argument('--date', help='Get data for this date formatted as "%Y-%m-%d"')
-    parser.add_argument('--update', action='store_true',
+    parser.add_argument('--date', help='Get data for this date formatted as "%Y-%m-%d"',
+                        default=datetime.now(tz=TIMEZONE))
+    parser.add_argument('--update-range', dest='update', action='store_true',
                         help='Download indices from the latest date in `output-folder`')
+    parser.add_argument('--end-date', dest='end_date', help='Range end date formatted as "%Y-%m-%d"',
+                        default=datetime.now(tz=TIMEZONE))
 
     return parser.parse_args(argv)
 
@@ -49,14 +52,25 @@ def append_daily_info_to_database(date, database):
     :param date: str, format "%Y-%m-%d"
     :param database: csv file
     """
-    date = datetime.strptime(date, "%Y-%m-%d")
+    print(f'Updating database for {date.strftime("%Y-%m-%d")}')
+    date = utils.to_date(date)
     daily_data = store.get_daily_data(date)
+    logger.info(f'Updating database for {date.strftime("%Y-%m-%d")}')
     with open(database, 'a') as db:
         csv_writer = csv.writer(db)
         for row in store.generate_csv_row(daily_data):
-            row.insert(0, date.strptime("%Y-%m-%d"))
+            row.insert(0, date.strftime("%Y-%m-%d"))
             csv_writer.writerow(row)
-            print(f"New row added to {database}")
+            print(f"\tNew row added to {database}")
+
+
+def append_date_range(start_date, end_date, database):
+    start_date = utils.to_date(start_date)
+    end_date = utils.to_date(end_date)
+    days = utils.find_weekdays(start_date, end_date)
+
+    for day in days:
+        append_daily_info_to_database(day, database)
 
 
 def main(argv=None):
@@ -86,10 +100,16 @@ def main(argv=None):
     #
     #     inds = download_index.download_span_indices((latest, date), data_db)
 
-    if date:
+    if not args.update:
         # TODO: Check if this date is already in the database
-        print(f"Updating database with data on {date}")
         append_daily_info_to_database(date, data_db)
+
+    else:
+        end_date = args.end_date
+        append_date_range(date, end_date, data_db)
+
+
+
 
     # Parse index
     # if not data_csv.exists():

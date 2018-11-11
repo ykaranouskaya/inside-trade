@@ -66,7 +66,7 @@ def get_daily_data(date):
     index_url = utils.index_url_from_date(date)
     index = Index(index_url, index_name)
 
-    for form in list(index.generate_form())[:20]:
+    for form in list(index.generate_form())[:5]:
         try:
             form.extract_info()
             time.sleep(0.5)

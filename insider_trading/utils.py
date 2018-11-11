@@ -1,7 +1,28 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import urllib
+
+
+def to_date(date):
+    if isinstance(date, str):
+        date = datetime.strptime(date, "%Y-%m-%d")
+    return date
+
+
+def find_weekdays(start_date, end_date):
+    """Find weekdays from the span (start_date, end_date) `start_date` exclusive."""
+    # start_date = start_date.date()
+    # end_date = start_date.date()
+    date = start_date
+    weekdays = []
+    while not check_same_date(date, end_date):
+        date += timedelta(days=1)
+        # print(f"New date: {date.weekday()}")
+        if date.isoweekday() in range(1, 6):
+            weekdays.append(date)
+
+    return weekdays
 
 
 def append_valid_string(tag_name):
