@@ -1,6 +1,23 @@
 import re
 from datetime import datetime
 
+import urllib
+
+
+def append_valid_string(tag_name):
+    if tag_name:
+        return tag_name.text.strip()
+    else:
+        return ''
+
+
+def index_url_from_date(date):
+    year = date.strftime('%Y')
+    quarter = get_quarter(date)
+    filename = create_index_filename(date)
+    url_stem = '/'.join([year, quarter, filename])
+    return url_stem
+
 
 def parse_date(filename):
     """
@@ -13,11 +30,11 @@ def parse_date(filename):
 
 def get_quarter(date):
     """Compute quarter from the date"""
-    quarter = {0: 'QTR4',
-               1: 'QTR1',
+    quarter = {1: 'QTR1',
                2: 'QTR2',
-               3: 'QTR3'}
-    quarter_ind = date.month // 4 + 1
+               3: 'QTR3',
+               4: 'QTR4'}
+    quarter_ind = (date.month - 1) // 3 + 1
     return quarter[quarter_ind]
 
 
