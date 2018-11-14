@@ -1,6 +1,7 @@
 # !usr/bin/python
 
 import argparse
+import asyncio
 import csv
 import sys
 from datetime import datetime
@@ -54,7 +55,10 @@ def append_daily_info_to_database(date, database):
     """
     print(f'Updating database for {date.strftime("%Y-%m-%d")}')
     date = utils.to_date(date)
-    daily_data = store.get_daily_data(date)
+    # import pdb; pdb.set_trace()
+
+    loop = asyncio.get_event_loop()
+    daily_data = loop.run_until_complete(store.get_daily_data(date))
     logger.info(f'Updating database for {date.strftime("%Y-%m-%d")}')
     with open(database, 'a') as db:
         csv_writer = csv.writer(db)

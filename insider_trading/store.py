@@ -59,22 +59,22 @@ def _make_row(entry, transaction):
     return row
 
 
-def get_daily_data(date):
+async def get_daily_data(date):
     daily_data = []
+    # import pdb; pdb.set_trace()
 
     index_name = utils.create_index_filename(date)
     index_url = utils.index_url_from_date(date)
     index = Index(index_url, index_name)
 
-    for form in list(index.generate_form())[:5]:
+    async for form in index.generate_form():
         try:
-            form.extract_info()
-            time.sleep(0.5)
-        except AttributeError as e:
+            await form.extract_info()
+        except AttributeError:
             logger.warning(f"Error parsing {str(form)}")
             continue
         content = form.get_content()
-
+        print(f'Got content for {form} !')
         if _filter_valid_form(form):
             daily_data.append(content)
 

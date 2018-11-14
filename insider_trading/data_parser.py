@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 import time
+import asyncio, aiohttp
 import urllib.request as request
 import urllib.parse
 from pathlib import Path
@@ -47,6 +48,18 @@ class Form:
         except urllib.error.HTTPError as e:
             logger.warning(f'Error while downloading form: {e}')
             return None
+        return soup
+
+    async def _async_request_form(self):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.url) as url:
+                    url_data = await url.read()
+            soup = BeautifulSoup(url_data, 'html.parser')
+        except aiohttp.web.HTTPError as e:
+            logger.warning(f'Error while downloading form: {e}')
+            return None
+
         return soup
 
     def _extract_owner_info(self, soup):
@@ -146,8 +159,11 @@ class Form:
         self._set_content('holding', 'ownership_status', ownership_status)
         self._set_content('holding', 'ownership_nature', ownership_nature)
 
-    def extract_info(self):
-        soup = self._request_form()
+    async def extract_info(self):
+        # loop = asyncio.get_event_loop()
+        # soup = loop.run_until_complete(self._async_request_form())
+        soup = await self._async_request_form()
+        # soup = self._request_form()
         if soup:
             self._extract_transaction_info(soup)
             self._extract_owner_info(soup)
@@ -202,14 +218,16 @@ class Index:
 
         return form, company, cik, date, filename
 
-    def generate_form(self):
+    async def generate_form(self):
         data = self._request_index()
         if data is None:
-            return None
+            yield None
         data = self._decode_binary_data(data)
         for entry in data.split("\n"):
             if entry.startswith('4 ') or entry.startswith('4/A'):
             # if entry.startswith('4/A'):
+            #     import pdb; pdb.set_trace()
                 form_url = self._parse_entry(entry)[-1]
                 form = Form(form_url)
                 yield form
+                await asyncio.sleep(0.5)
