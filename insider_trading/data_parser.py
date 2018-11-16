@@ -60,6 +60,7 @@ class Form:
             logger.warning(f'Error while downloading form: {e}')
             return None
 
+        # await asyncio.sleep(0.5)
         return soup
 
     def _extract_owner_info(self, soup):
@@ -218,7 +219,7 @@ class Index:
 
         return form, company, cik, date, filename
 
-    async def generate_form(self):
+    def generate_form(self):
         data = self._request_index()
         if data is None:
             yield None
@@ -230,4 +231,4 @@ class Index:
                 form_url = self._parse_entry(entry)[-1]
                 form = Form(form_url)
                 yield form
-                await asyncio.sleep(0.5)
+                # await asyncio.sleep(0.5)

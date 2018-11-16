@@ -53,8 +53,8 @@ def append_daily_info_to_database(date, database):
     :param date: str, format "%Y-%m-%d"
     :param database: csv file
     """
-    print(f'Updating database for {date.strftime("%Y-%m-%d")}')
     date = utils.to_date(date)
+    print(f'Updating database for {date.strftime("%Y-%m-%d")}')
     # import pdb; pdb.set_trace()
 
     loop = asyncio.get_event_loop()
