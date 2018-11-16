@@ -66,16 +66,17 @@ def get_daily_data(date):
     index_url = utils.index_url_from_date(date)
     index = Index(index_url, index_name)
 
-    for form in list(index.generate_form())[:5]:
+    for f in index.generate_form():
         try:
-            form.extract_info()
+            f.extract_info()
             time.sleep(0.5)
         except AttributeError as e:
-            logger.warning(f"Error parsing {str(form)}")
+            logger.warning(f"Error parsing {str(f)}")
             continue
-        content = form.get_content()
+        content = f.get_content()
+        # print(f"Got content for form {form} !")
 
-        if _filter_valid_form(form):
+        if _filter_valid_form(f):
             daily_data.append(content)
 
     return daily_data

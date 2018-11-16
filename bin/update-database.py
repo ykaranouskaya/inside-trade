@@ -52,8 +52,8 @@ def append_daily_info_to_database(date, database):
     :param date: str, format "%Y-%m-%d"
     :param database: csv file
     """
-    print(f'Updating database for {date.strftime("%Y-%m-%d")}')
     date = utils.to_date(date)
+    print(f'Updating database for {date.strftime("%Y-%m-%d")}')
     daily_data = store.get_daily_data(date)
     logger.info(f'Updating database for {date.strftime("%Y-%m-%d")}')
     with open(database, 'a') as db:
