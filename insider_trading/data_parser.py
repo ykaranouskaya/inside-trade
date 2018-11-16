@@ -7,6 +7,7 @@ import urllib.parse
 from pathlib import Path
 import logging
 
+from tqdm import tqdm
 from bs4 import BeautifulSoup
 
 from insider_trading import utils
@@ -207,7 +208,7 @@ class Index:
         if data is None:
             return None
         data = self._decode_binary_data(data)
-        for entry in data.split("\n"):
+        for entry in tqdm(data.split("\n")):
             if entry.startswith('4 ') or entry.startswith('4/A'):
             # if entry.startswith('4/A'):
                 form_url = self._parse_entry(entry)[-1]
