@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 import asyncio
+from asyncio import Semaphore
 import logging
 import time
 
 from insider_trading.data_parser import Index, utils
 
 INVALID_NAMES = [' llc', ' lp', 'group', 'trust', 'associates', 'l.p.', 'holdings', 'inc.', 'partners']
+MAX_REQUESTS_PER_SEC = 8
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,26 @@ def _make_row(entry, transaction):
     return row
 
 
+async def get_contents(index, limiter):
+
+    async def get_form(f, limiter):
+        try:
+            # print(f'TIME: {time.monotonic()}')
+            await f.extract_info(limiter)
+            if _filter_valid_form(f):
+                return f.get_content()
+            print(f'Got content for {f} !')
+        except AttributeError:
+            logger.warning(f"Error parsing {str(f)}")
+
+    coros = [get_form(f, limiter) for f in index.generate_form()]
+    contents = await asyncio.gather(*coros)
+
+    valid_contents = [c for c in contents if c]
+
+    return valid_contents
+
+
 def get_daily_data(date):
     # daily_data = []
     # import pdb; pdb.set_trace()
@@ -68,22 +90,11 @@ def get_daily_data(date):
     index_url = utils.index_url_from_date(date)
     index = Index(index_url, index_name)
 
-    async def get_form(f):
-        try:
-            await f.extract_info()
-            if _filter_valid_form(f):
-                return f.get_content()
-            print(f'Got content for {f} !')
-        except AttributeError:
-            logger.warning(f"Error parsing {str(f)}")
-
-    tasks = [asyncio.ensure_future(get_form(f)) for f in index.generate_form()]
     loop = asyncio.get_event_loop()
+    limiter = Semaphore(MAX_REQUESTS_PER_SEC, loop=loop)
 
-    contents = loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+    daily_data = loop.run_until_complete(get_contents(index, limiter))
     loop.close()
-
-    daily_data = [c for c in contents if c]
 
     return daily_data
 

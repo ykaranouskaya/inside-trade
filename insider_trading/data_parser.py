@@ -15,6 +15,7 @@ from insider_trading import utils
 
 BASE_FORM_ENDPOINT = 'https://www.sec.gov/Archives/'
 DAILY_INDEX_ENDPOINT = 'https://www.sec.gov/Archives/edgar/daily-index/'
+RATE_LIMIT_WAIT = 1.2
 
 
 logger = logging.getLogger(__name__)
@@ -52,15 +53,17 @@ class Form:
 
     async def _async_request_form(self):
         try:
+            print(f"Resuest start: {time.monotonic()}")
+            await asyncio.sleep(RATE_LIMIT_WAIT)
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.url) as url:
                     url_data = await url.read()
             soup = BeautifulSoup(url_data, 'html.parser')
+            print(f"Request end: {time.monotonic()}")
         except aiohttp.web.HTTPError as e:
             logger.warning(f'Error while downloading form: {e}')
             return None
 
-        # await asyncio.sleep(0.5)
         return soup
 
     def _extract_owner_info(self, soup):
@@ -160,11 +163,9 @@ class Form:
         self._set_content('holding', 'ownership_status', ownership_status)
         self._set_content('holding', 'ownership_nature', ownership_nature)
 
-    async def extract_info(self):
-        # loop = asyncio.get_event_loop()
-        # soup = loop.run_until_complete(self._async_request_form())
-        soup = await self._async_request_form()
-        # soup = self._request_form()
+    async def extract_info(self, limiter):
+        async with limiter:
+            soup = await self._async_request_form()
         if soup:
             self._extract_transaction_info(soup)
             self._extract_owner_info(soup)
@@ -194,7 +195,6 @@ class Index:
 
     def _request_index(self):
         try:
-            # import pdb; pdb.set_trace()
             user_agent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 5_0 like Mac OS X) AppleWebKit/534.46'
             req = request.Request(self.url, headers={'User-Agent': user_agent})
             with request.urlopen(req) as url_in:
@@ -231,4 +231,3 @@ class Index:
                 form_url = self._parse_entry(entry)[-1]
                 form = Form(form_url)
                 yield form
-                # await asyncio.sleep(0.5)
