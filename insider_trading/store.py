@@ -89,6 +89,10 @@ def get_daily_data(date):
     index_name = utils.create_index_filename(date)
     index_url = utils.index_url_from_date(date)
     index = Index(index_url, index_name)
+    try:
+        index.get_index()
+    except AttributeError:
+        return None
 
     loop = asyncio.get_event_loop()
     limiter = Semaphore(MAX_REQUESTS_PER_SEC, loop=loop)

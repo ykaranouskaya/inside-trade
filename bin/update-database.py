@@ -28,7 +28,7 @@ def parse_arguments(argv):
     parser.add_argument('--date', help='Get data for this date formatted as "%Y-%m-%d"',
                         default=datetime.now(tz=TIMEZONE))
     parser.add_argument('--update-range', dest='update', action='store_true',
-                        help='Download indices from the latest date in `output-folder`')
+                        help='Download indices in date range (date, end-date]')
     parser.add_argument('--end-date', dest='end_date', help='Range end date formatted as "%Y-%m-%d"',
                         default=datetime.now(tz=TIMEZONE))
 
@@ -58,13 +58,15 @@ def append_daily_info_to_database(date, database):
     # import pdb; pdb.set_trace()
 
     daily_data = store.get_daily_data(date)
-    logger.info(f'Updating database for {date.strftime("%Y-%m-%d")}')
-    with open(database, 'a') as db:
-        csv_writer = csv.writer(db)
-        for row in store.generate_csv_row(daily_data):
-            row.insert(0, date.strftime("%Y-%m-%d"))
-            csv_writer.writerow(row)
-            print(f"\tNew row added to {database}")
+    if daily_data is None:
+        logger.warning('\tSkipping index')
+    else:
+        with open(database, 'a') as db:
+            csv_writer = csv.writer(db)
+            for row in store.generate_csv_row(daily_data):
+                row.insert(0, date.strftime("%Y-%m-%d"))
+                csv_writer.writerow(row)
+                print(f"\tNew row added to {database}")
 
 
 def append_date_range(start_date, end_date, database):

@@ -183,6 +183,7 @@ class Index:
         else:
             self.name = url
         self.url = urllib.parse.urljoin(DAILY_INDEX_ENDPOINT, url)
+        self.data = None
 
     def __repr__(self):
         return f"Index {self.name}"
@@ -190,8 +191,8 @@ class Index:
     def __str__(self):
         return f"Index {self.name}"
 
-    def _decode_binary_data(self, binary_data):
-        return binary_data.decode('ascii')
+    # def _decode_binary_data(self):
+    #     return self.data.decode('ascii')
 
     def _request_index(self):
         try:
@@ -219,12 +220,15 @@ class Index:
 
         return form, company, cik, date, filename
 
-    def generate_form(self):
+    def get_index(self):
         data = self._request_index()
-        if data is None:
-            yield None
-        data = self._decode_binary_data(data)
-        for entry in data.split("\n"):
+        if data:
+            self.data = data.decode('ascii')
+        else:
+            raise AttributeError
+
+    def generate_form(self):
+        for entry in self.data.split("\n"):
             if entry.startswith('4 ') or entry.startswith('4/A'):
             # if entry.startswith('4/A'):
             #     import pdb; pdb.set_trace()
