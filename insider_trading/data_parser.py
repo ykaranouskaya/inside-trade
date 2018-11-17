@@ -18,7 +18,7 @@ DAILY_INDEX_ENDPOINT = 'https://www.sec.gov/Archives/edgar/daily-index/'
 RATE_LIMIT_WAIT = 1.2
 
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class Form:
@@ -47,21 +47,21 @@ class Form:
                 url_data = url.read()
             soup = BeautifulSoup(url_data, 'html.parser')
         except urllib.error.HTTPError as e:
-            logger.warning(f'Error while downloading form: {e}')
+            LOG.exception(f'Error while downloading form: {e}')
             return None
         return soup
 
     async def _async_request_form(self):
         try:
-            print(f"Resuest start: {time.monotonic()}")
+            LOG.debug(f"Resuest start: {time.monotonic()}")
             await asyncio.sleep(RATE_LIMIT_WAIT)
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.url) as url:
                     url_data = await url.read()
             soup = BeautifulSoup(url_data, 'html.parser')
-            print(f"Request end: {time.monotonic()}")
+            LOG.debug(f"Request end: {time.monotonic()}")
         except aiohttp.web.HTTPError as e:
-            logger.warning(f'Error while downloading form: {e}')
+            LOG.exception(f'Error while downloading form: {e}')
             return None
 
         return soup
@@ -101,7 +101,7 @@ class Form:
         try:
             transactions = soup.nonderivativetable.find_all('nonderivativetransaction')
         except AttributeError:
-            logger.warning("No non derivative transactions info found.")
+            LOG.warning("No non derivative transactions info found.")
             raise AttributeError("No non derivative transactions info found")
         for ind, transaction in enumerate(transactions):
             security = transaction.securitytitle.text.strip()
@@ -201,7 +201,7 @@ class Index:
             with request.urlopen(req) as url_in:
                 data = url_in.read()
         except urllib.error.HTTPError as e:
-            logger.warning(f'Error while downloading index: {e}')
+            LOG.exception(f'Error while downloading index: {e}')
             return None
         return data
 

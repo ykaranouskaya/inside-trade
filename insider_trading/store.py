@@ -9,7 +9,7 @@ from insider_trading.data_parser import Index, utils
 INVALID_NAMES = [' llc', ' lp', 'group', 'trust', 'associates', 'l.p.', 'holdings', 'inc.', 'partners']
 MAX_REQUESTS_PER_SEC = 8
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 def _valid_name(name):
@@ -70,9 +70,9 @@ async def get_contents(index, limiter):
             await f.extract_info(limiter)
             if _filter_valid_form(f):
                 return f.get_content()
-            print(f'Got content for {f} !')
+            LOG.debug(f'Got content for {f} !')
         except AttributeError:
-            logger.warning(f"Error parsing {str(f)}")
+            LOG.warning(f"Error parsing {str(f)}")
 
     coros = [get_form(f, limiter) for f in index.generate_form()]
     contents = await asyncio.gather(*coros)
