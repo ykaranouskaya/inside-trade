@@ -7,7 +7,7 @@ import time
 from insider_trading.data_parser import Index, utils
 
 INVALID_NAMES = [' llc', ' lp', 'group', 'trust', 'associates', 'l.p.', 'holdings', 'inc.', 'partners']
-MAX_REQUESTS_PER_SEC = 8
+MAX_REQUESTS_PER_SEC = 10
 
 LOG = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ async def get_contents(index, limiter):
                 return f.get_content()
             LOG.debug(f'Got content for {f} !')
         except AttributeError:
-            LOG.warning(f"Error parsing {str(f)}")
+            LOG.debug(f"Error parsing {str(f)}")
 
     coros = [get_form(f, limiter) for f in index.generate_form()]
     contents = await asyncio.gather(*coros)
@@ -83,8 +83,6 @@ async def get_contents(index, limiter):
 
 
 def get_daily_data(date):
-    # daily_data = []
-    # import pdb; pdb.set_trace()
 
     index_name = utils.create_index_filename(date)
     index_url = utils.index_url_from_date(date)
@@ -98,7 +96,6 @@ def get_daily_data(date):
     limiter = Semaphore(MAX_REQUESTS_PER_SEC, loop=loop)
 
     daily_data = loop.run_until_complete(get_contents(index, limiter))
-    loop.close()
 
     return daily_data
 

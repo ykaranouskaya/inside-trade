@@ -101,7 +101,7 @@ class Form:
         try:
             transactions = soup.nonderivativetable.find_all('nonderivativetransaction')
         except AttributeError:
-            LOG.warning("No non derivative transactions info found.")
+            LOG.debug("No non derivative transactions info found.")
             raise AttributeError("No non derivative transactions info found")
         for ind, transaction in enumerate(transactions):
             security = transaction.securitytitle.text.strip()
