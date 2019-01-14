@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 import time
+import asyncio, aiohttp
 import urllib.request as request
 import urllib.parse
 from pathlib import Path
@@ -15,9 +16,10 @@ from insider_trading import utils
 
 BASE_FORM_ENDPOINT = 'https://www.sec.gov/Archives/'
 DAILY_INDEX_ENDPOINT = 'https://www.sec.gov/Archives/edgar/daily-index/'
+RATE_LIMIT_WAIT = 1.2
 
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class Form:
@@ -46,8 +48,23 @@ class Form:
                 url_data = url.read()
             soup = BeautifulSoup(url_data, 'html.parser')
         except urllib.error.HTTPError as e:
-            logger.warning(f'Error while downloading form: {e}')
+            LOG.exception(f'Error while downloading form: {e}')
             return None
+        return soup
+
+    async def _async_request_form(self):
+        try:
+            LOG.debug(f"Resuest start: {time.monotonic()}")
+            await asyncio.sleep(RATE_LIMIT_WAIT)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(self.url) as url:
+                    url_data = await url.read()
+            soup = BeautifulSoup(url_data, 'html.parser')
+            LOG.debug(f"Request end: {time.monotonic()}")
+        except aiohttp.web.HTTPError as e:
+            LOG.exception(f'Error while downloading form: {e}')
+            return None
+
         return soup
 
     def _extract_owner_info(self, soup):
@@ -85,7 +102,7 @@ class Form:
         try:
             transactions = soup.nonderivativetable.find_all('nonderivativetransaction')
         except AttributeError:
-            logger.warning("No non derivative transactions info found.")
+            LOG.debug("No non derivative transactions info found.")
             raise AttributeError("No non derivative transactions info found")
         for ind, transaction in enumerate(transactions):
             security = transaction.securitytitle.text.strip()
@@ -147,8 +164,9 @@ class Form:
         self._set_content('holding', 'ownership_status', ownership_status)
         self._set_content('holding', 'ownership_nature', ownership_nature)
 
-    def extract_info(self):
-        soup = self._request_form()
+    async def extract_info(self, limiter):
+        async with limiter:
+            soup = await self._async_request_form()
         if soup:
             self._extract_transaction_info(soup)
             self._extract_owner_info(soup)
@@ -166,6 +184,7 @@ class Index:
         else:
             self.name = url
         self.url = urllib.parse.urljoin(DAILY_INDEX_ENDPOINT, url)
+        self.data = None
 
     def __repr__(self):
         return f"Index {self.name}"
@@ -173,18 +192,17 @@ class Index:
     def __str__(self):
         return f"Index {self.name}"
 
-    def _decode_binary_data(self, binary_data):
-        return binary_data.decode('ascii')
+    # def _decode_binary_data(self):
+    #     return self.data.decode('ascii')
 
     def _request_index(self):
         try:
-            # import pdb; pdb.set_trace()
             user_agent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 5_0 like Mac OS X) AppleWebKit/534.46'
             req = request.Request(self.url, headers={'User-Agent': user_agent})
             with request.urlopen(req) as url_in:
                 data = url_in.read()
         except urllib.error.HTTPError as e:
-            logger.warning(f'Error while downloading index: {e}')
+            LOG.exception(f'Error while downloading index: {e}')
             return None
         return data
 
@@ -203,14 +221,18 @@ class Index:
 
         return form, company, cik, date, filename
 
-    def generate_form(self):
+    def get_index(self):
         data = self._request_index()
-        if data is None:
-            return None
-        data = self._decode_binary_data(data)
-        for entry in tqdm(data.split("\n")):
+        if data:
+            self.data = data.decode('ascii')
+        else:
+            raise AttributeError
+
+    def generate_form(self):
+        for entry in self.data.split("\n"):
             if entry.startswith('4 ') or entry.startswith('4/A'):
             # if entry.startswith('4/A'):
+            #     import pdb; pdb.set_trace()
                 form_url = self._parse_entry(entry)[-1]
                 form = Form(form_url)
                 yield form

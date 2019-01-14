@@ -1,6 +1,7 @@
 # !usr/bin/python
 
 import argparse
+import asyncio
 import csv
 import sys
 from datetime import datetime
@@ -17,7 +18,7 @@ BASE_ENDPOINT = 'https://www.sec.gov/Archives/'
 TIMEZONE = timezone('EST')
 
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 def parse_arguments(argv):
@@ -27,9 +28,11 @@ def parse_arguments(argv):
     parser.add_argument('--date', help='Get data for this date formatted as "%Y-%m-%d"',
                         default=datetime.now(tz=TIMEZONE))
     parser.add_argument('--update-range', dest='update', action='store_true',
-                        help='Download indices from the latest date in `output-folder`')
+                        help='Download indices in date range (date, end-date]')
     parser.add_argument('--end-date', dest='end_date', help='Range end date formatted as "%Y-%m-%d"',
                         default=datetime.now(tz=TIMEZONE))
+    parser.add_argument('--verbose', '-v', action='store_true', default=False,
+                        help="Verbosity level (default: INFO, -v: DEBUG)")
 
     return parser.parse_args(argv)
 
@@ -53,15 +56,20 @@ def append_daily_info_to_database(date, database):
     :param database: csv file
     """
     date = utils.to_date(date)
-    print(f'Updating database for {date.strftime("%Y-%m-%d")}')
+    LOG.info(f'Updating database for {date.strftime("%Y-%m-%d")}')
+    # import pdb; pdb.set_trace()
+
     daily_data = store.get_daily_data(date)
-    logger.info(f'Updating database for {date.strftime("%Y-%m-%d")}')
-    with open(database, 'a') as db:
-        csv_writer = csv.writer(db)
-        for row in store.generate_csv_row(daily_data):
-            row.insert(0, date.strftime("%Y-%m-%d"))
-            csv_writer.writerow(row)
-            print(f"\tNew row added to {database}")
+    if daily_data is None:
+        LOG.warning('\tSkipping index')
+    else:
+        with open(database, 'a') as db:
+            csv_writer = csv.writer(db)
+            for row in store.generate_csv_row(daily_data):
+                row.insert(0, date.strftime("%Y-%m-%d"))
+                csv_writer.writerow(row)
+                LOG.debug(f"\tNew row added to {database}")
+        LOG.info(f"Added {len(daily_data)} new rows.")
 
 
 def append_date_range(start_date, end_date, database):
@@ -74,11 +82,14 @@ def append_date_range(start_date, end_date, database):
 
 
 def main(argv=None):
-    logger.setLevel('DEBUG')
 
     # Download index first
     argv = argv or sys.argv[1:]
     args = parse_arguments(argv)
+
+    # Set up Log
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level, format='%(name)s - %(levelname)s - %(message)s')
 
     data_db = Path(args.output_database)
     # date = datetime.now(tz=TIMEZONE)
