@@ -13,5 +13,8 @@ setup(
     author_email='y.karanouskaya@gmail.com',
     install_requires=[
         "beautifulsoup4",
+    ],
+    scripts=[
+            "bin/update-database"
     ]
 )
