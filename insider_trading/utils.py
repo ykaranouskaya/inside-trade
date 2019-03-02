@@ -81,3 +81,11 @@ def create_index_filename(date):
     return filename
 
 
+def check_days_diff(date1, date2, diff=180):
+    """ Check if timedelta > then `diff` for two dates.
+    """
+    assert isinstance(date1, datetime)
+    assert isinstance(date2, datetime)
+
+    delta = (date2 - date1).days
+    return delta > diff
