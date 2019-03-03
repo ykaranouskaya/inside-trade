@@ -11,7 +11,6 @@ from insider_trading.market_api import API
 from insider_trading.utils import to_date, check_days_diff
 
 
-MAX_QUEUE_LEN = 500
 DATE_WINDOW = 180
 
 LOG = logging.getLogger(__name__)
@@ -22,8 +21,10 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('--database', type=Path, help='Database .csv file with SEC forms info.')
     parser.add_argument('--output_folder', type=Path, help='Path to the output folder with market data.')
+    parser.add_argument('--symbols_queue_size', type=int, default=400,
+                        help='Number of tickers to update. DEFAULT: 400')
     parser.add_argument('--api_function', type=str, default='TIME_SERIES_WEEKLY_ADJUSTED',
-                        help='Type of market data to download.')
+                        help='Type of market data to download. DEFAULT: "TIME_SERIES_WEEKLY_ADJUSTED"')
     parser.add_argument('--output_size', type=str, default=None,
                         help='If `api_function` is DAILY, need to specify output size '
                         '(compact / full).')
@@ -45,6 +46,7 @@ def need_update(ticker, date, output_folder):
     :param output_folder:
     :return: Tuple (bool, data)
     """
+    LOG.debug(f"Checking {ticker} data...")
     json_path = output_folder / (ticker + '.json')
     if not json_path.exists():
         return True, None
@@ -58,13 +60,14 @@ def need_update(ticker, date, output_folder):
             return True, None
 
     if is_out_of_date(date, last_refreshed):
+        LOG.debug(f"Stock {ticker} is out of date, adding to the queue.")
         return True, data
 
     LOG.debug(f"Stock {ticker} is up to date, skipping.")
     return False
 
 
-def prepare_symbols(database, output_folder):
+def prepare_symbols(database, output_folder, queue_size):
     """
     Read database and find 50 unique symbols that need to be updated.
     :param database: csv file to read SEC data.
@@ -82,7 +85,7 @@ def prepare_symbols(database, output_folder):
 
             if ticker not in symbols and need_update(ticker, date, output_folder):
                 symbols.add(ticker)
-            if len(symbols) == MAX_QUEUE_LEN:
+            if len(symbols) == queue_size:
                 break
 
     return list(symbols)
@@ -94,12 +97,13 @@ def main(argv=None):
 
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=log_level, format='%(name)s - %(levelname)s - %(message)s')
+    LOG.setLevel(log_level)
 
-    symbols = prepare_symbols(args.database, args.output_folder)
+    symbols = prepare_symbols(args.database, args.output_folder, args.symbols_queue_size)
     LOG.info(f'START DOWNLOADING MARKET DATA FOR: {symbols}')
     market_api = API(args.api_function, args.output_size)
 
-    data = market_api.get_symbols_data(symbols[:2])
+    data = market_api.get_symbols_data(symbols)
     for entry in data:
         info = entry['Meta Data']['2. Symbol']
         filename = Path(args.output_folder) / (info + '.json')
