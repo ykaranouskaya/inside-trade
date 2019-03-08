@@ -36,6 +36,9 @@ class API:
         except aiohttp.web.HTTPError as e:
             LOG.exception(f'Error while downloading {params["symbol"]} data: {e}')
             return None
+        except aiohttp.client_exceptions.ClientConnectionError as e:
+            LOG.exception(f"Client connection error while downloading {params['symbol']} data: {e}")
+            return None
 
         return data
 
