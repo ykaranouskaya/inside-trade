@@ -1,17 +1,14 @@
 # !usr/bin/python
 
 import argparse
-import asyncio
 import csv
 import sys
 from datetime import datetime
-import time
 from pytz import timezone
 from pathlib import Path
 import logging
 
-from insider_trading import download_index, parse_index, store, utils
-from insider_trading.utils import check_same_date
+from insider_trading import store, utils
 
 
 BASE_ENDPOINT = 'https://www.sec.gov/Archives/'
@@ -99,18 +96,6 @@ def main(argv=None):
     if not data_db.exists():
         create_data_csv(data_db)
 
-    # Update if necessary
-    # if args.update:
-    #     latest = download_index.find_latest_downloaded_index(data_db)
-    #     print(f"    FROM: {latest}")
-    #     print(f"    UNTIL: {date}")
-    #
-    #     if check_same_date(date, latest):
-    #         print("Already up to date.")
-    #         sys.exit(0)
-    #
-    #     inds = download_index.download_span_indices((latest, date), data_db)
-
     if not args.update:
         # TODO: Check if this date is already in the database
         append_daily_info_to_database(date, data_db)
@@ -118,34 +103,6 @@ def main(argv=None):
     else:
         end_date = args.end_date
         append_date_range(date, end_date, data_db)
-
-
-
-
-    # Parse index
-    # if not data_csv.exists():
-    #     create_data_csv(data_csv)
-    #
-    # for index in inds:
-    #     form = Path(output_folder) / index
-    #     print(f"Parsing {index}...")
-    #
-    #     for entry in parse_index.read_form_index_entries(form):
-    #         print(entry)
-    #
-    #         form_url = BASE_ENDPOINT + entry[-1]
-    #         info = parse_index.parse_form(form_url)
-    #         time.sleep(1)
-    #         print(f"OWNER: {info[0]}")
-    #         print(f"ISSUER: {info[1]}")
-    #         print(f"TRANSACTIONS: {info[2]}")
-    #         print(f"HOLDINGS: {info[3]}")
-    #
-    #         with open(data_csv, 'a') as fout:
-    #             writer = csv.writer(fout)
-    #             for entry in parse_index.generate_csv_entry(info):
-    #                 print(','.join(entry))
-    #                 writer.writerow(entry)
 
 
 if __name__ == "__main__":
