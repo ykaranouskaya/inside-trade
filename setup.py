@@ -15,6 +15,7 @@ setup(
         "beautifulsoup4",
     ],
     scripts=[
-            "bin/update-database"
+            "bin/update-database",
+            "bin/update-market-data"
     ]
 )
