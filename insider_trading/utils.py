@@ -4,8 +4,19 @@ from datetime import datetime, timedelta
 import urllib
 
 
+def strip_date(date):
+    pattern = '\d{4}-\d{1,2}-\d{1,2}'
+    match = re.search(pattern, date)
+    if match:
+        return match.group()
+    else:
+        raise ValueError(f'Incorrect date format: {date}')
+
+
 def to_date(date):
     if isinstance(date, str):
+        # extract only date
+        date = strip_date(date)
         date = datetime.strptime(date, "%Y-%m-%d")
     return date
 
