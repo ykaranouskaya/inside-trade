@@ -33,6 +33,9 @@ class API:
                 async with session.get(self.url, params=params) as url:
                     data = await url.read()
                     data = json.loads(data)
+        except json.decoder.JSONDecodeError as e:
+            LOG.exception(f'JSON decoding error while downloading {params["symbol"]} data: {e}')
+            return None
         except aiohttp.web.HTTPError as e:
             LOG.exception(f'Error while downloading {params["symbol"]} data: {e}')
             return None
