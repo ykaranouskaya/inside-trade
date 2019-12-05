@@ -69,9 +69,18 @@ def prepare_symbols(database, output_folder, queue_size):
     :return: list of symbols to download
     """
     symbols = set()
+
+    # Read total N of lines for progress tracking
+    with open(database, 'r') as fin:
+        csv_reader = csv.DictReader(fin)
+        stats = {"processed": 0,
+                 "invalid": 0,
+                 "total": sum(1 for row in csv_reader)}
+
     # Read database line by line and check ticker
     with open(database, 'r') as fin:
         csv_reader = csv.DictReader(fin)
+
         for row in csv_reader:
             ticker = row['TICKER']
             ticker = ticker.upper()
@@ -79,12 +88,18 @@ def prepare_symbols(database, output_folder, queue_size):
 
             # Sanity check
             if not is_valid_ticker(ticker):
-                LOG.warning(f"Ticker {ticker} is invalid.")
+                LOG.debug(f"Ticker {ticker} is invalid.")
+                stats['invalid'] += 1
                 continue
 
+            stats['processed'] += 1
             if ticker not in symbols and need_update(ticker, date, output_folder):
                 symbols.add(ticker)
             if len(symbols) == queue_size:
+                LOG.info(f"PROCESSED: {stats['processed']} / {stats['total']} "
+                         f"({stats['processed'] / stats['total'] * 100} %)")
+                LOG.info(f"INVALID: {stats['invalid']} / {stats['processed']} "
+                         f"({stats['invalid'] / stats['processed'] * 100} %)")
                 break
 
     return list(symbols)
