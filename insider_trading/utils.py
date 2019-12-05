@@ -4,6 +4,14 @@ from datetime import datetime, timedelta
 import urllib
 
 
+def get_current_date(str_format=True):
+    date = datetime.now()
+    if str_format:
+        date = date.strftime("%Y-%m-%d")
+
+    return date
+
+
 def strip_date(date):
     pattern = '\d{4}-\d{1,2}-\d{1,2}'
     match = re.search(pattern, date)
@@ -27,7 +35,7 @@ def is_out_of_date(date, last_refreshed, last_date, date_window):
     last_date = to_date(last_date)
 
     old = check_days_diff(date, last_date, diff=date_window)
-    if old and last_refreshed.month == last_date.month:
+    if old and last_refreshed <= last_date:
         return True
 
     return False

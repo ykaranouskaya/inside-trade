@@ -8,7 +8,7 @@ from pathlib import Path
 import logging
 
 from insider_trading.market_api import API
-from insider_trading.utils import is_valid_ticker, is_out_of_date
+from insider_trading.utils import is_valid_ticker, is_out_of_date, get_current_date
 
 
 DATE_WINDOW = 180
@@ -141,8 +141,13 @@ def main(argv=None):
     market_api = API(args.api_function, args.output_size)
 
     data, rejected = market_api.get_symbols_data(symbols, rejected)
+    curr_date = get_current_date()
     for entry in data:
         info = entry['Meta Data']['2. Symbol']
+
+        # Overwrite Refreshed date
+        entry['Meta Data']['3. Last Refreshed'] = curr_date
+
         filename = Path(args.output_folder) / (info + '.json')
         with open(filename, 'w') as fout:
             json.dump(entry, fout)
