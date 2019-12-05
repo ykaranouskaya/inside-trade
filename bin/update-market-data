@@ -21,6 +21,8 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('--database', type=Path, help='Database .csv file with SEC forms info.')
     parser.add_argument('--output_folder', type=Path, help='Path to the output folder with market data.')
+    parser.add_argument('--rejects', type=Path, help='Path to the file listing rejected tickers '
+                                                     '(download API errors)')
     parser.add_argument('--symbols_queue_size', type=int, default=400,
                         help='Number of tickers to update. DEFAULT: 400')
     parser.add_argument('--api_function', type=str, default='TIME_SERIES_WEEKLY_ADJUSTED',
@@ -61,11 +63,14 @@ def need_update(ticker, date, output_folder):
     return False
 
 
-def prepare_symbols(database, output_folder, queue_size):
+def prepare_symbols(database, output_folder, queue_size,
+                    rejected):
     """
     Read database and find 50 unique symbols that need to be updated.
     :param database: csv file to read SEC data.
     :param output_folder: Path, folder where ticket data is saved.
+    :param queue_size: max size of symbols list.
+    :param rejected: set of erroneous symbols to skip.
     :return: list of symbols to download
     """
     symbols = set()
@@ -75,6 +80,7 @@ def prepare_symbols(database, output_folder, queue_size):
         csv_reader = csv.DictReader(fin)
         stats = {"processed": 0,
                  "invalid": 0,
+                 "rejected": 0,
                  "total": sum(1 for row in csv_reader)}
 
     # Read database line by line and check ticker
@@ -86,13 +92,20 @@ def prepare_symbols(database, output_folder, queue_size):
             ticker = ticker.upper()
             date = row['REPORT_DATE']
 
+            stats['processed'] += 1
+
             # Sanity check
             if not is_valid_ticker(ticker):
                 LOG.debug(f"Ticker {ticker} is invalid.")
                 stats['invalid'] += 1
                 continue
 
-            stats['processed'] += 1
+            # Check if previously rejected
+            if ticker in rejected:
+                LOG.debug(f"Ticker {ticker} was previously rejected.")
+                stats["rejected"] += 1
+                continue
+
             if ticker not in symbols and need_update(ticker, date, output_folder):
                 symbols.add(ticker)
             if len(symbols) == queue_size:
@@ -100,6 +113,8 @@ def prepare_symbols(database, output_folder, queue_size):
                          f"({stats['processed'] / stats['total'] * 100} %)")
                 LOG.info(f"INVALID: {stats['invalid']} / {stats['processed']} "
                          f"({stats['invalid'] / stats['processed'] * 100} %)")
+                LOG.info(f"REJECTED: {stats['rejected']} / {stats['processed']} "
+                         f"({stats['rejected'] / stats['processed'] * 100} %)")
                 break
 
     return list(symbols)
@@ -113,17 +128,31 @@ def main(argv=None):
     logging.basicConfig(level=log_level, format='%(name)s - %(levelname)s - %(message)s')
     LOG.setLevel(log_level)
 
-    symbols = prepare_symbols(args.database, args.output_folder, args.symbols_queue_size)
+    # Load rejects - tickers that got consistent download errors (Invalid API Call)
+    try:
+        with open(args.rejects, 'r') as f:
+            rejected = set(line.strip() for line in f.readlines())
+    except FileNotFoundError:
+        rejected = set()
+
+    symbols = prepare_symbols(args.database, args.output_folder, args.symbols_queue_size,
+                              rejected)
     LOG.info(f'START DOWNLOADING MARKET DATA FOR: {symbols}')
     market_api = API(args.api_function, args.output_size)
 
-    data = market_api.get_symbols_data(symbols)
+    data, rejected = market_api.get_symbols_data(symbols, rejected)
     for entry in data:
         info = entry['Meta Data']['2. Symbol']
         filename = Path(args.output_folder) / (info + '.json')
         with open(filename, 'w') as fout:
             json.dump(entry, fout)
         LOG.info(f'Saved {info} market data to {filename}.')
+
+    # Save rejects
+    with open(args.rejects, 'a') as f_rej:
+        for reject in rejected:
+            f_rej.write(reject)
+            f_rej.write('\n')
 
     LOG.info('DONE.')
 
