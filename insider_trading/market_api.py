@@ -36,11 +36,8 @@ class API:
         except json.decoder.JSONDecodeError as e:
             LOG.exception(f'JSON decoding error while downloading {params["symbol"]} data: {e}')
             return None
-        except aiohttp.web.HTTPError as e:
+        except Exception as e:
             LOG.exception(f'Error while downloading {params["symbol"]} data: {e}')
-            return None
-        except aiohttp.client_exceptions.ClientConnectionError as e:
-            LOG.exception(f"Client connection error while downloading {params['symbol']} data: {e}")
             return None
 
         return data
@@ -58,6 +55,9 @@ class API:
         if self.outputsize:
             parameters.update({'outputsize': self.outputsize})
         info = await self.request(parameters, limiter)
+        if info is None:
+            LOG.warning(f'Error while downloading {symbol} data')
+            return None
         if info.get('Error Message'):
             LOG.warning(f'Error while downloading {symbol} data: {info.get("Error Message")}')
             return None
