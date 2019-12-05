@@ -21,6 +21,18 @@ def to_date(date):
     return date
 
 
+def is_out_of_date(date, last_refreshed, last_date, date_window):
+    date = to_date(date)
+    last_refreshed = to_date(last_refreshed)
+    last_date = to_date(last_date)
+
+    old = check_days_diff(date, last_date, diff=date_window)
+    if old and last_refreshed.month == last_date.month:
+        return True
+
+    return False
+
+
 def find_weekdays(start_date, end_date):
     """Find weekdays from the span (start_date, end_date) `start_date` exclusive."""
     # start_date = start_date.date()
