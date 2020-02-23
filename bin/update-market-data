@@ -8,7 +8,7 @@ from pathlib import Path
 import logging
 
 from insider_trading.market_api import API
-from insider_trading.utils import to_date, check_days_diff, is_valid_ticker
+from insider_trading.utils import is_valid_ticker, is_out_of_date, get_current_date
 
 
 DATE_WINDOW = 180
@@ -21,6 +21,8 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('--database', type=Path, help='Database .csv file with SEC forms info.')
     parser.add_argument('--output_folder', type=Path, help='Path to the output folder with market data.')
+    parser.add_argument('--rejects', type=Path, help='Path to the file listing rejected tickers '
+                                                     '(download API errors)')
     parser.add_argument('--symbols_queue_size', type=int, default=400,
                         help='Number of tickers to update. DEFAULT: 400')
     parser.add_argument('--api_function', type=str, default='TIME_SERIES_WEEKLY_ADJUSTED',
@@ -30,13 +32,6 @@ def parse_arguments(argv):
                         '(compact / full).')
     parser.add_argument('--verbose', '-v', action='store_true', default=False, help='Show debug messages')
     return parser.parse_args(argv)
-
-
-def is_out_of_date(date, last_refreshed):
-    date = to_date(date)
-    last_refreshed = to_date(last_refreshed)
-
-    return check_days_diff(date, last_refreshed, diff=DATE_WINDOW)
 
 
 def need_update(ticker, date, output_folder):
@@ -55,11 +50,12 @@ def need_update(ticker, date, output_folder):
         data = json.load(fin)
         try:
             last_refreshed = data['Meta Data']['3. Last Refreshed']
+            last_date = sorted(data['Weekly Adjusted Time Series'].keys())[-1]
         except KeyError:
             LOG.warning(f"File {json_path} has invalid format.")
             return True, None
 
-    if is_out_of_date(date, last_refreshed):
+    if is_out_of_date(date, last_refreshed, last_date, date_window=DATE_WINDOW):
         LOG.debug(f"Stock {ticker} is out of date, adding to the queue.")
         return True, data
 
@@ -67,30 +63,58 @@ def need_update(ticker, date, output_folder):
     return False
 
 
-def prepare_symbols(database, output_folder, queue_size):
+def prepare_symbols(database, output_folder, queue_size,
+                    rejected):
     """
     Read database and find 50 unique symbols that need to be updated.
     :param database: csv file to read SEC data.
     :param output_folder: Path, folder where ticket data is saved.
+    :param queue_size: max size of symbols list.
+    :param rejected: set of erroneous symbols to skip.
     :return: list of symbols to download
     """
     symbols = set()
+
+    # Read total N of lines for progress tracking
+    with open(database, 'r') as fin:
+        csv_reader = csv.DictReader(fin)
+        stats = {"processed": 0,
+                 "invalid": 0,
+                 "rejected": 0,
+                 "total": sum(1 for row in csv_reader)}
+
     # Read database line by line and check ticker
     with open(database, 'r') as fin:
         csv_reader = csv.DictReader(fin)
+
         for row in csv_reader:
             ticker = row['TICKER']
             ticker = ticker.upper()
             date = row['REPORT_DATE']
 
+            stats['processed'] += 1
+
             # Sanity check
             if not is_valid_ticker(ticker):
-                LOG.warning(f"Ticker {ticker} is invalid.")
+                LOG.debug(f"Ticker {ticker} is invalid.")
+                stats['invalid'] += 1
+                continue
+
+            # Check if previously rejected
+            if ticker in rejected:
+                LOG.debug(f"Ticker {ticker} was previously rejected.")
+                stats["rejected"] += 1
                 continue
 
             if ticker not in symbols and need_update(ticker, date, output_folder):
                 symbols.add(ticker)
             if len(symbols) == queue_size:
+                LOG.info(f"PROCESSED: {stats['processed']} / {stats['total']} "
+                         f"({stats['processed'] / stats['total'] * 100} %)")
+                LOG.info(f"INVALID: {stats['invalid']} / {stats['processed']} "
+                         f"({stats['invalid'] / stats['processed'] * 100} %)")
+                LOG.info(f"REJECTED: {stats['rejected']} / {stats['processed']} "
+                         f"({stats['rejected'] / stats['processed'] * 100} %)")
                 break
 
     return list(symbols)
@@ -104,17 +128,36 @@ def main(argv=None):
     logging.basicConfig(level=log_level, format='%(name)s - %(levelname)s - %(message)s')
     LOG.setLevel(log_level)
 
-    symbols = prepare_symbols(args.database, args.output_folder, args.symbols_queue_size)
+    # Load rejects - tickers that got consistent download errors (Invalid API Call)
+    try:
+        with open(args.rejects, 'r') as f:
+            rejected = set(line.strip() for line in f.readlines())
+    except FileNotFoundError:
+        rejected = set()
+
+    symbols = prepare_symbols(args.database, args.output_folder, args.symbols_queue_size,
+                              rejected)
     LOG.info(f'START DOWNLOADING MARKET DATA FOR: {symbols}')
     market_api = API(args.api_function, args.output_size)
 
-    data = market_api.get_symbols_data(symbols)
+    data, rejected = market_api.get_symbols_data(symbols, rejected)
+    curr_date = get_current_date()
     for entry in data:
         info = entry['Meta Data']['2. Symbol']
+
+        # Overwrite Refreshed date
+        entry['Meta Data']['3. Last Refreshed'] = curr_date
+
         filename = Path(args.output_folder) / (info + '.json')
         with open(filename, 'w') as fout:
             json.dump(entry, fout)
         LOG.info(f'Saved {info} market data to {filename}.')
+
+    # Save rejects
+    with open(args.rejects, 'a') as f_rej:
+        for reject in rejected:
+            f_rej.write(reject)
+            f_rej.write('\n')
 
     LOG.info('DONE.')
 

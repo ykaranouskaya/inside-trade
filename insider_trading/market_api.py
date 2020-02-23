@@ -33,11 +33,11 @@ class API:
                 async with session.get(self.url, params=params) as url:
                     data = await url.read()
                     data = json.loads(data)
-        except aiohttp.web.HTTPError as e:
-            LOG.exception(f'Error while downloading {params["symbol"]} data: {e}')
+        except json.decoder.JSONDecodeError as e:
+            LOG.exception(f'JSON decoding error while downloading {params["symbol"]} data: {e}')
             return None
-        except aiohttp.client_exceptions.ClientConnectionError as e:
-            LOG.exception(f"Client connection error while downloading {params['symbol']} data: {e}")
+        except Exception as e:
+            LOG.exception(f'Error while downloading {params["symbol"]} data: {e}')
             return None
 
         return data
@@ -48,24 +48,28 @@ class API:
 
         return data
 
-    async def get_symbol_info(self, symbol, limiter):
+    async def get_symbol_info(self, symbol, limiter, rejected):
         parameters = {"function": self.function,
                       "symbol": symbol,
                       "apikey": self.API_KEY}
         if self.outputsize:
             parameters.update({'outputsize': self.outputsize})
         info = await self.request(parameters, limiter)
+        if info is None:
+            LOG.warning(f'Error while downloading {symbol} data')
+            return None
         if info.get('Error Message'):
             LOG.warning(f'Error while downloading {symbol} data: {info.get("Error Message")}')
+            rejected.add(symbol)
             return None
 
         LOG.info(f'Got {symbol} market data.')
         return info
 
-    def get_symbols_data(self, symbols):
+    def get_symbols_data(self, symbols, rejected=set()):
 
         async def get_contents(symbols, limiter):
-            coros = [self.get_symbol_info(sym, limiter) for sym in symbols]
+            coros = [self.get_symbol_info(sym, limiter, rejected) for sym in symbols]
             contents = await asyncio.gather(*coros)
             valid_contents = [c for c in contents if c]  # Filter only valid data
 
@@ -76,4 +80,5 @@ class API:
 
         symbols_data = loop.run_until_complete(get_contents(symbols, limiter))
 
-        return symbols_data
+        return symbols_data, rejected
+

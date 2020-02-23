@@ -4,10 +4,41 @@ from datetime import datetime, timedelta
 import urllib
 
 
+def get_current_date(str_format=True):
+    date = datetime.now()
+    if str_format:
+        date = date.strftime("%Y-%m-%d")
+
+    return date
+
+
+def strip_date(date):
+    pattern = '\d{4}-\d{1,2}-\d{1,2}'
+    match = re.search(pattern, date)
+    if match:
+        return match.group()
+    else:
+        raise ValueError(f'Incorrect date format: {date}')
+
+
 def to_date(date):
     if isinstance(date, str):
+        # extract only date
+        date = strip_date(date)
         date = datetime.strptime(date, "%Y-%m-%d")
     return date
+
+
+def is_out_of_date(date, last_refreshed, last_date, date_window):
+    date = to_date(date)
+    last_refreshed = to_date(last_refreshed)
+    last_date = to_date(last_date)
+
+    old = check_days_diff(date, last_date, diff=date_window)
+    if old and last_refreshed <= last_date:
+        return True
+
+    return False
 
 
 def find_weekdays(start_date, end_date):
