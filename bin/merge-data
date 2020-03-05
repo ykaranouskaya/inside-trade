@@ -12,6 +12,8 @@ def parse_arguments(argv):
     parser.add_argument('filings_database', help='Data csv file to load forms filings info from')
     parser.add_argument('market_root', help='Path to the market data folder')
     parser.add_argument('output', help='Path to the file where to save output')
+    parser.add_argument('--ma_windows', help='Windows to compute moving average, comma separated string. Default `4`',
+                        default='4')
     parser.add_argument('--verbose', '-v', action='store_true', default=False,
                         help="Verbosity level (default: INFO, -v: DEBUG)")
 
@@ -22,7 +24,9 @@ def main(argv=None):
     argv = argv or sys.argv[1:]
     args = parse_arguments(argv)
 
-    merged_df = merge.merge_forms_market(args.filings_database, args.market_root)
+    ma_windows = [int(w) for w in args.ma_windows.split(',')]
+
+    merged_df = merge.merge_forms_market(args.filings_database, args.market_root, ma_windows=ma_windows)
     merged_df.to_csv(args.output, index=False)
 
 

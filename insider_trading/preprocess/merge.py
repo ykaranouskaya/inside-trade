@@ -46,12 +46,15 @@ def json_to_csv(symbol, data_root):
     return csv_data
 
 
-def merge_forms_market(forms_csv, market_root):
+def merge_forms_market(forms_csv, market_root, ma_windows=[],
+                       ma_cols=['adjusted close', 'adjusted high', 'adjusted low']):
     """
     Merge form filings data with market data.
     Adds adjusted high and low, keeps all other columns from market data.
     :param forms_csv: path to the csv file storing forms filing info.
     :param market_root: path to the folder storing market data.
+    :param ma_windows: moving average windows to add
+    :param ma_cols: columns to compute moving average for
     :return: merged data frame
     """
 
@@ -72,6 +75,8 @@ def merge_forms_market(forms_csv, market_root):
             print(f"Error loading {symb}: {e}")
             continue
         feat_eng.add_adjusted(df)
+        for window in ma_windows:
+            feat_eng.add_ma(df, ma_cols, window)
         market_df.append(df)
 
     market_df = pd.concat(market_df)
