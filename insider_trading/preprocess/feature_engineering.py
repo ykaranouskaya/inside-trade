@@ -23,8 +23,7 @@ def add_ma(df, cols=['adjusted close', 'adjusted high', 'adjusted low'],
     If `shift` is True, shifts MA columns backward by window / 2.
     """
     for c in cols:
-        c_name = c.split()[-1]
-        c_name = f'{c_name}_ma_{window}'
+        c_name = f'{c}_ma_{window}'
         df[c_name] = df[c].rolling(window=window).mean()
         if shift:
             df[c_name] = df[c_name].shift(-window // 2)
@@ -74,3 +73,27 @@ def add_shifted(df, date_col='date', cols=['adjusted close'], dt_days=180):
 
     return df_new
 
+
+def add_gains(df, new_col='adjusted close_ma_4_180', ref_col='adjusted close_ma_4',
+              new_col_name='change_adj_close_ma_4', perc=True):
+    """
+    Compute absolute and relative gains.
+    :param df: data frame
+    :param new_col: changed column
+    :param ref_col: reference column
+    :return: data frame with new columns `change_*` and `change_*,%`
+    """
+    buy = df['AQUIRED/DISPOSED'] == 'A'
+    sell = df['AQUIRED/DISPOSED'] == 'D'
+
+    change_col = f'{new_col_name}'
+    change_col_rel = f'{new_col_name},%'
+
+    df[change_col] = df[new_col] - df[ref_col]
+    df[sell][change_col] *= -1
+
+    if perc:
+        df[change_col_rel] = (df[new_col] - df[ref_col]) / df[ref_col]
+        df[sell][change_col_rel] *= -1
+
+    return df
