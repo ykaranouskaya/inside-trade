@@ -47,7 +47,8 @@ def json_to_csv(symbol, data_root):
 
 
 def merge_forms_market(forms_csv, market_root, ma_windows=[],
-                       ma_cols=['adjusted close', 'adjusted high', 'adjusted low']):
+                       ma_cols=['adjusted close', 'adjusted high', 'adjusted low'],
+                       add_sp500=True):
     """
     Merge form filings data with market data.
     Adds adjusted high and low, keeps all other columns from market data.
@@ -55,6 +56,7 @@ def merge_forms_market(forms_csv, market_root, ma_windows=[],
     :param market_root: path to the folder storing market data.
     :param ma_windows: moving average windows to add
     :param ma_cols: columns to compute moving average for
+    :param add_sp500: boolean, include S&P500 benchmark or not
     :return: merged data frame
     """
 
@@ -90,6 +92,17 @@ def merge_forms_market(forms_csv, market_root, ma_windows=[],
                               by='TICKER', left_on='REPORT_DATE', right_on='date',
                               tolerance=pd.Timedelta(days=7))
 
+    if add_sp500:
+        df = json_to_csv('SPX', market_root)
+        feat_eng.add_ma(df, ['adjusted close'], window=4)
+        df.rename(columns={'adjusted close': 'spx_adjusted_close',
+                           'adjusted close_ma_4': 'spx_adjusted_close_ma_4',
+                           'date': 'spx_date'}, inplace=True)
+        df.sort_values(by='spx_date', inplace=True)
+        merged_df = pd.merge_asof(merged_df, df[['spx_date', 'spx_adjusted_close', 'spx_adjusted_close_ma_4']],
+                                  left_on='REPORT_DATE', right_on='spx_date',
+                                  tolerance=pd.Timedelta(days=7))
+
     # drop nans
     merged_df = merged_df[~merged_df['date'].isnull()]
 
@@ -101,4 +114,3 @@ if __name__ == "__main__":
     market_root = './data/market_data/'
 
     merged_df = merge_forms_market(forms_csv, market_root)
-    import pdb; pdb.set_trace()
