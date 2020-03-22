@@ -158,3 +158,25 @@ def add_holding_change_perc(df, new_col='HOLDING_CHANGE,%'):
     df[new_col].loc[(df[AMOUNT] != 0) & (df[HOLDING_BEFORE] == 0)] = 1.
 
     return df
+
+
+def _replace_bools(x):
+    if x == 'true' or x == '1':
+        return 1
+    elif x == 'false' or x == '0':
+        return 0
+
+    return x
+
+
+def process_booleans(df):
+    """
+    Format booleans as 0/1 integers.
+    :param df: dataframe
+    :return: processed dataframe
+    """
+    boolean_cols = [IS_DIRECTOR, IS_OFFICER, IS_MAJOR_OWNER, IS_OTHER]
+
+    df[boolean_cols] = df[boolean_cols].applymap(_replace_bools)
+
+    return df
