@@ -3,7 +3,10 @@ Utility functions for feature engineering.
 """
 from datetime import timedelta
 
+import numpy as np
 import pandas as pd
+
+from insider_trading.config import *
 
 DATE_FORMAT = '%Y-%m-%d'
 
@@ -95,5 +98,49 @@ def add_gains(df, new_col='adjusted close_ma_4_180', ref_col='adjusted close_ma_
     if perc:
         df[change_col_rel] = (df[new_col] - df[ref_col]) / df[ref_col]
         df[sell][change_col_rel] *= -1
+
+    return df
+
+
+def process_ppu_outliers(df, thr=6000., tol=0.5, replace=True):
+    """
+    Remove report price outliers.
+
+    In particular, all prices higher than `thr` are compared to the actual market adjusted close price.
+    If relative difference is greater `tol`, values are replaced with NaNs or market price is `replace` is True.
+    Otherwise, prices are devided by amount value to double force unit price.
+    :param df: dataframe
+    :param thr: price threshold. All reported prices higher than this threshold are compared to market prices.
+    :param tol: tolerance ratio. If reported price and market price difference
+    :return:
+    """
+    df_slice = df[df[PRICE_PER_UNIT] > thr]
+    df_slice['NORM_PPU'] = df_slice[PRICE_PER_UNIT] / df_slice[AMOUNT]
+
+    tol_cond = abs(df_slice['NORM_PPU'] - df_slice[ADJUSTED_CLOSE]) / df_slice['NORM_PPU'] < tol
+    ids = df_slice.index[tol_cond]
+    nan_ids = df_slice.index[~tol_cond]
+
+    data = df.copy()
+    data.loc[ids, PRICE_PER_UNIT] = df_slice.loc[ids]['NORM_PPU']
+    if replace:
+        data.loc[nan_ids, PRICE_PER_UNIT] = df_slice.loc[nan_ids][ADJUSTED_CLOSE]
+    else:
+        data.loc[nan_ids, PRICE_PER_UNIT] = np.nan
+
+    return data
+
+
+def validate_ppu_to_market(df, max_ratio=10):
+    ratio = df[PRICE_PER_UNIT] / df[ADJUSTED_CLOSE]
+
+    df = df[ratio < max_ratio]
+    df = df[ratio > (1. / max_ratio)]
+
+    return df
+
+
+def drop_zeros(df, column=PRICE_PER_UNIT):
+    df = df[df[column] != 0.]
 
     return df
