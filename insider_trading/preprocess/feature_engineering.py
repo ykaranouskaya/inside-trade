@@ -185,3 +185,21 @@ def process_booleans(df):
     df[boolean_cols] = df[boolean_cols].applymap(_replace_bools)
 
     return df
+
+
+def process_aquired(df):
+    """
+    Binarize aquired/disposed column.
+    """
+    df[AQUIRED] = df[AQUIRED].apply(lambda x: 1 if x == 'A' else 0)
+
+    return df
+
+
+def process_direct_ownership(df):
+    """
+    Binarize direct ownership column.
+    """
+    df[IS_DIRECT_OWNER] = df[OWNERSHIP_STATUS].apply(lambda x: 1 if x == 'D' else 0)
+
+    return df
