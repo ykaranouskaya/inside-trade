@@ -146,16 +146,21 @@ def drop_zeros(df, column=PRICE_PER_UNIT):
     return df
 
 
-def add_holding_change_perc(df, new_col='HOLDING_CHANGE,%'):
+def add_holding_change_perc(df, new_col='HOLDING_CHANGE,%', cap=False):
     """
     Compute fractional change in holdings after transaction.
     :param df: dataframe
     :param new_col: name of new column
+    :param cap: bool, if True, cap all large values to 1.
     :return: dataframe with additional holding change column
     """
     df[new_col] = df[AMOUNT] / df[HOLDING_BEFORE]
     df[new_col].loc[df[AMOUNT] == 0] = 0
     df[new_col].loc[(df[AMOUNT] != 0) & (df[HOLDING_BEFORE] == 0)] = 1.
+
+    if cap:
+        large = df[new_col] > 1.
+        df[new_col].loc[large] = 1.
 
     return df
 
