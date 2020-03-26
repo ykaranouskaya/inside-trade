@@ -1,20 +1,14 @@
 # CONSTANTS
 
-# COLUMN NAMES
-DATE = 'date'
+RANDOM_SEED = 10
+
+# COLUMN NAMES - SEC filings
 REPORT_DATE = 'REPORT_DATE'
-SHIFTED_DATE = 'shifted_date'
 TICKER = 'TICKER'
 AQUIRED = 'AQUIRED/DISPOSED'
 PRICE_PER_UNIT = 'PRICE_PER_UNIT'
-AMOUNT = 'AMOUNT'
-CLOSE = 'close'
-HIGH = 'high'
-LOW = 'low'
-ADJUSTED_CLOSE = 'adjusted close'
-ADJUSTED_HIGH = 'adjusted high'
-ADJUSTED_LOW = 'adjusted low'
 HOLDING_BEFORE = 'HOLDING_BEFORE'
+AMOUNT = 'AMOUNT'
 
 IS_DIRECTOR = 'IS_DIRECTOR'
 IS_OFFICER = 'IS_OFFICER'
@@ -22,3 +16,22 @@ IS_MAJOR_OWNER = 'IS_10%_OWNER'
 IS_OTHER = 'OTHER'
 IS_DIRECT_OWNER = 'IS_DIRECT_OWNER'
 OWNERSHIP_STATUS = 'OWNERSHIP_STATUS(DIRECT/INDIRECT)'
+
+# COLUMN NAMES - market data
+DATE = 'date'
+OPEN = 'open'
+CLOSE = 'close'
+HIGH = 'high'
+LOW = 'low'
+ADJUSTED_CLOSE = 'adjusted close'
+ADJUSTED_HIGH = 'adjusted high'
+ADJUSTED_LOW = 'adjusted low'
+VOLUME = 'volume'
+DIVIDEND_AMOUNT = 'dividend amount'
+
+# NEW COLUMNS
+SHIFTED_DATE = 'shifted_date'
+SPX_ADJUSTED_CLOSE = 'spx_adjusted_close'
+SPX_DATE = 'spx_date'
+SPX_GAIN = 'change_benchmark,%'
+HOLDING_CHANGE = 'HOLDING_CHANGE,%'
