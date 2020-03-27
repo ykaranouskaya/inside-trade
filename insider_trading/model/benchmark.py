@@ -1,9 +1,11 @@
 """
 Create a simple benchmark that uses data with minimal preprocessing, using random forest model.
 """
+import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 from insider_trading.preprocess import feature_engineering as feat_eng
 from insider_trading.config import *
@@ -87,3 +89,24 @@ def rf_benchmark(train_data, **model_params):
     rf_model.fit(*train_data)
 
     return rf_model
+
+
+def evaluate(model, data, plot=True):
+
+    X, y = data
+
+    # Get model score
+    score = model.score(X, y)
+    print(f"Score: {score}")
+
+    pred = model.predict(X)
+    mse = mean_squared_error(y, pred)
+    mae = mean_absolute_error(y, pred)
+    print(f"MSE: {mse}")
+    print(f"MAE: {mae}")
+
+    if plot:
+        fig = plt.figure(figsize=(10, 10))
+        plt.scatter(y, pred)
+        plt.xlabel('Target')
+        plt.ylabel('Prediction')
