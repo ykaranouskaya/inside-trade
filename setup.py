@@ -16,6 +16,7 @@ setup(
     ],
     scripts=[
             "bin/update-database",
-            "bin/update-market-data"
+            "bin/update-market-data",
+            "bin/merge-data"
     ]
 )
